@@ -218,3 +218,26 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Frontend dependencies and generated output (at any application depth)
+node_modules/
+.next/
+.nuxt/
+.output/
+.vite/
+out/
+coverage/
+*.tsbuildinfo
+
+# Local secrets and environment overrides; keep shareable templates trackable
+.env.*
+!.env.example
+!.env.*.example
+*.pem
+*.key
+
+# Local editor and operating system files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
