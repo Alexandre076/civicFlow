@@ -5,15 +5,15 @@ An open-source, agentic AI platform for citizen engagement, municipal service or
 
 ```text
 frontend/             Citizen-facing user interface (placeholder)
-backend/              APIs and service orchestration (placeholder)
+backend/              FastAPI backend and tests
 docs/architecture.md  Intended architecture and application boundaries
 .editorconfig         Shared editor conventions
 .gitignore            Generated files and local-only configuration
 ```
 
-This repository currently contains the initial monorepo scaffold. The frontend
-and backend have not been implemented, and there are no install, run, or test
-commands yet.
+The backend provides a minimal FastAPI application with a health endpoint.
+See the [backend setup guide](backend/README.md) for Python 3.12 and uv install,
+run, configuration, and test commands. The frontend remains a placeholder.
 
 Each application will own its dependencies, configuration, tests, and build
 tooling in its own directory. See the [architecture outline](docs/architecture.md)

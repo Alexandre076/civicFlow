@@ -1,7 +1,8 @@
 # Intended architecture
 
-This document outlines the initial application boundaries. Implementation details
-and technology choices remain to be defined in future work.
+This document outlines application boundaries. The backend starts with Python
+3.12, FastAPI, Pydantic v2, and uv; workflow and integration choices remain
+future work.
 
 ## Frontend
 
@@ -26,5 +27,5 @@ belong to this application.
   environment templates should use `.env.example` files with placeholder values
   in the relevant application directory.
 
-The initial scaffold includes no application code, dependencies, API contracts,
-or deployment configuration.
+The backend currently exposes only `GET /health` and generated API documentation.
+Workflows, integrations, storage, and deployment configuration are future work.
