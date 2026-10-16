@@ -6,9 +6,10 @@ future work.
 
 ## Frontend
 
-`frontend/` will contain the citizen-facing user interface for engagement and
-municipal services. It will communicate with backend APIs to access application
-capabilities.
+`frontend/` contains a responsive React + TypeScript application shell using
+Vite, native CSS, and CSS Modules, with Node.js 22 and npm. It will provide the
+citizen-facing interface for engagement and municipal services. Backend
+communication and citizen chat functionality are future work.
 
 ## Backend
 
