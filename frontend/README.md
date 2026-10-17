@@ -58,6 +58,25 @@ and rebuild to change a production bundle.
 Local `.env` files, `node_modules/`, `dist/`, and coverage output are ignored by
 the shared repository `.gitignore`.
 
+### Development proxy and Docker
+
+The Vite server forwards relative `/api` requests to `http://localhost:8000`
+by default and strips the `/api` prefix: `/api/health` reaches `/health`.
+Future API routes must match this convention or change the rewrite. Set
+`VITE_API_BASE_URL=/api` in your optional local `.env` to use the proxy when
+integrating browser requests. The existing shell still makes no API calls.
+To override the server-only target outside Docker, run:
+
+```bash
+API_PROXY_TARGET=http://localhost:9000 npm run dev
+```
+
+Compose sets `API_PROXY_TARGET=http://backend:8000` and the public API base to
+`/api`; never use the Docker hostname as a browser-facing URL. The target is
+read from the server process environment, not a `VITE_*` browser setting.
+See the [root Compose quickstart](../README.md#development-with-docker-compose)
+for live reload, dependency volume refresh, and Codespaces ports.
+
 ## Scripts and checks
 
 Run from `frontend/`:

@@ -65,3 +65,13 @@ Application code lives in `src/civicflow/`: `main.py` creates the app,
 in `tests/`.
 
 See the [architecture outline](../docs/architecture.md) for application boundaries.
+
+## Docker development
+
+The [root Compose quickstart](../README.md#development-with-docker-compose)
+runs Uvicorn with `--host 0.0.0.0 --port 8000 --reload`, source mounts and an
+isolated `.venv` volume. Safe default settings need no `.env`; an optional local
+`backend/.env` is read through the mount and is excluded from image builds.
+Restart the service after changing configuration. `docker compose ps` shows
+health status; the health check uses Python's standard library against
+`GET /health`. No database or other infrastructure is required.
