@@ -1,5 +1,22 @@
 # civicFlow
-An open-source, agentic AI platform for citizen engagement, municipal service orchestration, and urban intelligence.
+An open-source, AI-assisted municipal incident and service-request platform for citizens.
+
+## Current state and target MVP
+
+Today, CivicFlow provides a React + TypeScript shell with a coming-soon chat
+placeholder, a FastAPI health endpoint, Docker Compose local development, and
+lint, test, and build checks in CI. The shell makes no backend requests.
+Interactive chat, agent orchestration, MCP tools, and persistence are not implemented.
+
+The target MVP is a text-based citizen conversation: describe an incident or
+service request, supply missing details, and receive a municipal protocol
+reference or look up its status through mock tools. The planned FastAPI +
+Pydantic backend uses LangGraph Intake and Routing Agents with MCP tools for
+mock protocol creation and lookup. There are no live government-system
+integrations. Persistence is future work.
+
+See the [architecture reference](docs/architecture.md) for component boundaries
+and the intended request flow.
 
 ## Development with Docker Compose
 
@@ -122,7 +139,11 @@ protection manually to require both `backend` and `frontend` status checks.
 ```text
 frontend/             React + TypeScript application shell
 backend/              FastAPI backend and tests
-docs/architecture.md  Intended architecture and application boundaries
+docs/architecture.md  Current foundation and target MVP architecture
+CONTRIBUTING.md       Issue-to-PR contribution workflow
+AGENTS.md             Instructions for Codex sessions
+.github/workflows/    Backend and frontend CI checks
+compose.yaml          Local development services and dependency volumes
 .editorconfig         Shared editor conventions
 .gitignore            Generated files and local-only configuration
 ```
@@ -132,6 +153,12 @@ See the [backend setup guide](backend/README.md) for Python 3.12 and uv install,
 run, configuration, and test commands. The [frontend setup guide](frontend/README.md)
 covers the React application shell, Node.js 22, npm scripts, and Codespaces access.
 
-Each application will own its dependencies, configuration, tests, and build
+Each application owns its dependencies, configuration, tests, and build
 tooling in its own directory. See the [architecture outline](docs/architecture.md)
 for the intended responsibilities.
+
+## Contributing
+
+Follow the [issue-to-PR workflow](CONTRIBUTING.md) for scope, branches, validation,
+review, and Squash and Merge. New Codex sessions should read
+[AGENTS.md](AGENTS.md) and the assigned issue before making changes.
