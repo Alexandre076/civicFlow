@@ -11,13 +11,13 @@ from the repository root:
 ```bash
 cd backend
 uv python install 3.12
-uv sync
+uv sync --locked
 ```
 
 Python is restricted to 3.12 (`>=3.12,<3.13`), with `.python-version` selecting
-that version. `uv sync` creates `.venv`, installs the application and development
-dependencies, and uses the resolved versions in `uv.lock`. No manual virtual
-environment activation is required.
+that version. `uv sync --locked` creates `.venv`, installs the application and
+development dependencies, and uses the resolved versions in `uv.lock`. No manual
+virtual environment activation is required.
 
 ## Configuration
 
@@ -46,13 +46,20 @@ The development server listens at `http://127.0.0.1:8000` by default:
 - `/docs` provides interactive API documentation.
 - `/openapi.json` provides the generated OpenAPI schema.
 
-## Tests
+## Quality checks
 
 From `backend/`:
 
 ```bash
+uv run ruff check .
+uv run ruff format --check .
 uv run pytest
 ```
+
+Ruff checks Python errors and import ordering and verifies formatting without
+rewriting source. To apply formatting locally, run `uv run ruff format .` and
+review the changes. CI uses the same checks; see the
+[root quality guide](../README.md#quality-checks-and-ci) for troubleshooting.
 
 Tests use FastAPI's TestClient and require no running server, external APIs,
 databases, or credentials. To verify the lockfile without updating it, use

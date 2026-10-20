@@ -68,6 +68,55 @@ builds. Public frontend settings and the server-only `API_PROXY_TARGET` are
 described in the [frontend guide](frontend/README.md); backend settings are in
 the [backend guide](backend/README.md). This Compose setup is for development.
 
+## Quality checks and CI
+
+Use Python 3.12 with uv and Node.js 22 with npm. Run the same checks as CI
+from the repository root:
+
+```bash
+cd backend
+uv sync --locked
+uv run ruff check .
+uv run ruff format --check .
+uv run pytest
+cd ../frontend
+npm ci
+npm run lint
+npm run typecheck
+npm run test
+npm run build
+```
+
+See the [backend guide](backend/README.md) and
+[frontend guide](frontend/README.md) for standalone setup and development.
+Vitest runs once and exits. Tests require no running servers, database,
+credentials, or external AI APIs. Docker Compose is optional for development
+and is not used by CI.
+
+The single workflow in [`.github/workflows/ci.yml`](.github/workflows/ci.yml)
+runs on pull requests targeting `main` and pushes to `main`. Its independent
+Ubuntu jobs appear as `backend` and `frontend`; a failure in either job does
+not prevent the other job from running. They use the committed lockfiles and
+cache uv/npm downloads based on their respective lockfiles. Workflow
+permissions are limited to `contents: read`; checks do not fix or commit source.
+The production build writes only generated output under `frontend/dist/`.
+
+For a failed check, open the failing job and step in GitHub Actions, then run
+that command locally in the corresponding application directory. Ruff and
+ESLint report file locations; fix the reported code. For formatting failures,
+run `uv run ruff format .` from `backend/` and review the diff. TypeScript errors
+come from `typecheck` (also included in `build`); pytest and Vitest report the
+failed assertions. Re-run the affected checks after fixing the cause.
+
+If installation fails, verify tool versions first. For a stale backend lockfile,
+run `uv lock` after an intentional dependency change; for frontend dependency
+changes, run `npm install` to update `package-lock.json`. Review and include
+lockfile changes with dependency edits. For download/cache failures, retry the
+job; caches are an optimization and locked installs remain required.
+
+After validating successful GitHub-hosted runs, configure `main` branch
+protection manually to require both `backend` and `frontend` status checks.
+
 ## Repository layout
 
 ```text
