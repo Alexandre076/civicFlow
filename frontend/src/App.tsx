@@ -13,7 +13,7 @@ export default function App() {
           <p className={styles.eyebrow}>Your city. Your voice.</p>
           <h1 id="welcome-title">A closer connection to your city.</h1>
           <p className={styles.description}>
-            A simpler way to find municipal services, share local concerns,
+            A simpler way to find city services, share local concerns,
             and take part in your community.
           </p>
         </section>
