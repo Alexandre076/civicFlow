@@ -77,6 +77,34 @@ read from the server process environment, not a `VITE_*` browser setting.
 See the [root Compose quickstart](../README.md#development-with-docker-compose)
 for live reload, dependency volume refresh, and Codespaces ports.
 
+### Troubleshooting missing dependencies in Docker
+
+If Vite reports `Failed to resolve import "react-i18next"` (or another
+dependency listed in `package.json`) after updating the code, the existing
+`frontend_node_modules` volume may still contain the previous installation.
+Rebuilding with `docker compose up --build` preserves that volume, so refresh
+its dependencies explicitly. From the repository root, run:
+
+```bash
+docker compose run --rm frontend npm ci
+docker compose restart frontend
+```
+
+Reload the page at port **5173**. In Codespaces, use **Open in Browser** for
+that port in the **Ports** tab. If the frontend has not been created yet, use
+`docker compose up -d frontend` instead of `restart`.
+
+To inspect startup failures, run from the repository root:
+
+```bash
+docker compose ps -a
+docker compose logs --tail=100 frontend
+```
+
+Installing dependencies on the host does not update the container's separate
+`node_modules` volume. Use the refresh commands whenever frontend dependencies
+change; removing Compose volumes is unnecessary for this recovery.
+
 ## Scripts and checks
 
 Run from `frontend/`:
@@ -102,3 +130,43 @@ npm run build
 Shared test setup lives in `src/test/setup.ts`, with tests in `tests/`.
 
 See the [architecture outline](../docs/architecture.md) for application boundaries.
+
+## UI translations
+
+The landing page supports Portuguese (Brazil) (`pt-BR`) and English (`en`).
+Use the header's **Idioma / Language** native selector with mouse or keyboard;
+changes apply immediately and update the document's `lang`. Only a manual
+choice is stored, under `civicflow.locale` in localStorage. Storage failures
+leave the page usable, but the selection may not survive another visit.
+
+`src/i18n/config.ts` initializes i18next/react-i18next once through `main.tsx`.
+Initial locale precedence is a valid saved canonical locale, the first supported
+entry in `navigator.languages`, then `navigator.language`, then `pt-BR`.
+Browser tags are matched case-insensitively: `pt` and `pt-*` map to `pt-BR`;
+`en` and `en-*` map to `en`. Unsupported browser tags and stale saved values
+are ignored. Automatic browser/default choices are not saved.
+
+Catalogues live in `src/i18n/locales/pt-BR.json` and `en.json`. Use semantic
+keys such as `home.welcome.title` with `useTranslation().t(...)`, and add the
+same keys to every catalogue. Keep branding and language names consistent.
+To add a future language, add its JSON catalogue, register its resource and
+canonical code in `config.ts`, extend browser-tag mapping and the translated
+`common.languages` options, and extend the locale/parity tests. Components
+render the supported locale list and need no restructuring.
+
+Missing English keys fall back to Portuguese. A key missing from every
+catalogue returns its key without crashing; tests enforce catalogue parity to
+catch omissions before release. To check fallback manually, temporarily remove
+an English entry, select English and confirm its Portuguese text appears,
+then restore the entry. `npm run test` covers fallback with a temporary test
+resource, preference resolution, persistence, switching, accessible names and
+keyboard focus. Native select arrow-key behavior should also be checked in a
+browser because jsdom does not implement it. Technical missing-key diagnostics
+are not shown to citizens.
+
+This preference controls UI text only. It does not detect message language or
+translate messages. No authentication or preferences endpoint is called.
+Future authentication integration must apply the server's `preferred_locale`
+for existing users and save authenticated selections through the profile API;
+see the [locale contract](../docs/api-contracts.md#ui-locale-and-assistant-language).
+That integration belongs to #20/#23.
