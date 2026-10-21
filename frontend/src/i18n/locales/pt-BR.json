@@ -1,0 +1,26 @@
+{
+  "common": {
+    "brand": "CivicFlow",
+    "language": "Idioma",
+    "languages": {
+      "pt-BR": "Português",
+      "en": "English"
+    }
+  },
+  "home": {
+    "services": "Serviços ao cidadão",
+    "welcome": {
+      "eyebrow": "Sua cidade. Sua voz.",
+      "title": "Uma conexão mais próxima com sua cidade.",
+      "description": "Uma forma mais simples de encontrar serviços municipais, compartilhar questões locais e participar da sua comunidade."
+    },
+    "footer": "Feito para comunidades mais conectadas."
+  },
+  "chat": {
+    "placeholder": {
+      "badge": "Em breve",
+      "title": "O chat do cidadão está chegando.",
+      "description": "Em uma próxima versão, você poderá fazer perguntas e explorar os serviços municipais por meio de uma conversa. Esta experiência ainda está em desenvolvimento."
+    }
+  }
+}

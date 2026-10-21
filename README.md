@@ -60,6 +60,8 @@ docker compose build
 docker compose run --rm frontend npm ci
 docker compose run --rm backend uv sync --locked
 docker compose up -d
+# Restart running development servers after refreshing dependencies
+docker compose restart frontend backend
 # Clean reset: deletes all Compose volumes and their installed dependencies
 docker compose down -v
 docker compose up --build
@@ -68,6 +70,11 @@ docker compose up --build
 `down -v` permanently deletes data in this project's Compose volumes. Currently
 these contain only reproducible dependencies; any files manually placed there
 will also be lost. Host source files and local `.env` files remain intact.
+
+Rebuilding images preserves existing dependency volumes. If Vite reports
+`Failed to resolve import` after a dependency change, follow the
+[frontend troubleshooting guide](frontend/README.md#troubleshooting-missing-dependencies-in-docker)
+to refresh the frontend volume and restart its server.
 
 The frontend dev proxy forwards relative `/api/*` requests to
 `http://backend:8000` over the default Compose network, stripping `/api`

@@ -1,0 +1,26 @@
+{
+  "common": {
+    "brand": "CivicFlow",
+    "language": "Language",
+    "languages": {
+      "pt-BR": "Português",
+      "en": "English"
+    }
+  },
+  "home": {
+    "services": "Citizen services",
+    "welcome": {
+      "eyebrow": "Your city. Your voice.",
+      "title": "A closer connection to your city.",
+      "description": "A simpler way to find city services, share local concerns, and take part in your community."
+    },
+    "footer": "Built for more connected communities."
+  },
+  "chat": {
+    "placeholder": {
+      "badge": "Coming soon",
+      "title": "Citizen chat is on its way.",
+      "description": "In a future release, you’ll be able to ask questions and explore city services through a conversation. This experience is still being built."
+    }
+  }
+}

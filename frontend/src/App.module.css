@@ -24,3 +24,7 @@
   .main { grid-template-columns: 1fr; gap: 2rem; }
   .intro h1 { max-width: 16ch; }
 }
+
+.language { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; }
+.language select { padding: 0.45rem; border: 1px solid #4c625b; border-radius: 0.5rem; background: #fffefa; color: inherit; font: inherit; }
+.language select:focus-visible { outline: 2px solid #245b43; outline-offset: 3px; }
