@@ -40,8 +40,10 @@ for commands and configuration.
 ## Target MVP components (planned)
 
 Only the frontend and backend foundations exist today. All request-processing
-connections below are planned. Persistence is future work and is not required
-to run the current application.
+connections below are planned. PostgreSQL persistence for users, identities,
+sessions, conversations and messages is planned in Epic #2 and is not required
+to run the current application. Municipal incident/protocol persistence belongs
+to Epic #4.
 
 ```mermaid
 flowchart TD
@@ -54,16 +56,18 @@ flowchart TD
         Routing <--> Tools[MCP tools: mock protocol creation and lookup]
     end
     Tools <--> Mock[Mock municipal service behavior]
-    API -. future persistence .-> Storage[Incident and protocol records]
+    API <--> History[Planned Epic 2 PostgreSQL conversation history]
+    API -. future Epic 4 .-> Storage[Incident and protocol records]
 ```
 
 | Planned component | Responsibility and boundary |
 | --- | --- |
 | Citizen chat | Collect text input and display follow-up questions and results. The browser communicates with the backend; orchestration and tool access belong behind the API. |
-| Backend API | Validate inputs and outputs with Pydantic and coordinate the interaction. Chat endpoints and data contracts are not yet defined. |
+| Backend API | Validate inputs and outputs with Pydantic and coordinate the interaction. Planned v1 contracts are defined in [API contracts](api-contracts.md); no chat endpoints are implemented. |
 | LangGraph orchestration | Coordinate the Intake Agent, which understands requests and collects missing details, and the Routing Agent, which classifies and routes them. LangGraph is not installed yet. |
 | MCP tools | Provide mock municipal protocol creation and lookup behind a tool boundary. No MCP implementation or live government-system integration exists. |
-| Future persistence | Store incident and protocol records. No database, schema, or persistence implementation has been chosen in this foundation. |
+| Conversation persistence (Epic #2) | PostgreSQL will store users, linked identities, sessions as appropriate, conversations and messages. Schema, ORM and migrations are not implemented. |
+| Municipal persistence (Epic #4) | Future incident/protocol records; outside the conversation-history scope. |
 
 ## Anticipated citizen-request flow
 
@@ -74,9 +78,15 @@ flowchart TD
 4. The Routing Agent classifies and routes the request, using MCP tools for
    mock municipal protocol creation or lookup as appropriate.
 5. The backend returns the result for the chat to display, such as a mock
-   protocol reference or status. Future persistence would retain incident and
-   protocol records; durable storage is not available today.
+   protocol reference or status in later epics. Epic #2 first provides persisted
+   conversation history with deterministic mock assistant replies and no real
+   protocol creation; durable storage is not available today.
 
-AI providers, request schemas, chat endpoints, routing rules, and production
-infrastructure remain unspecified. Geospatial analysis, multimodal input,
-and monitoring/oversight are future ideas outside the current MVP scope.
+Planned authentication, conversation and streaming contracts for Epic #2 are
+defined in [API contracts](api-contracts.md), [authentication](authentication.md)
+and [POST/SSE streaming](streaming.md). They specify Google OIDC with BFF
+sessions, ownership checks, locale boundaries and complete paginated history;
+none is implemented. PostgreSQL is selected for conversation history. AI
+providers, agent routing rules and production infrastructure remain unspecified.
+Geospatial analysis, multimodal input, and monitoring/oversight are future ideas
+outside the current MVP scope.

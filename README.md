@@ -13,7 +13,11 @@ service request, supply missing details, and receive a municipal protocol
 reference or look up its status through mock tools. The planned FastAPI +
 Pydantic backend uses LangGraph Intake and Routing Agents with MCP tools for
 mock protocol creation and lookup. There are no live government-system
-integrations. Persistence is future work.
+integrations. Persistence is not implemented: Epic #2 plans PostgreSQL for
+users and conversation history; municipal incident/protocol storage belongs to
+Epic #4. The planned [API contracts](docs/api-contracts.md),
+[authentication](docs/authentication.md), and [streaming](docs/streaming.md)
+contracts guide Epic #2 implementation.
 
 See the [architecture reference](docs/architecture.md) for component boundaries
 and the intended request flow.
