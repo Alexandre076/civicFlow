@@ -1,8 +1,9 @@
 # Authentication contract — v1 (planned)
 
-Design only for [Epic #2](https://github.com/Alexandre076/civicFlow/issues/2).
-No login, database or sessions exist today. Route prefixes, User DTO and errors
-are defined in [API contracts](api-contracts.md); stream revocation behavior is
+Design only for [Epic #2](https://github.com/Alexandre076/civicFlow/issues/2). Login,
+PostgreSQL sessions and the minimal React account flow are now implemented in #20; see
+[implementation/setup decisions](auth-development.md). Route prefixes, User DTO and
+errors are defined in [API contracts](api-contracts.md); stream revocation behavior is
 in [streaming](streaming.md). Google is the only MVP identity provider.
 
 ## Google OIDC and the BFF
@@ -102,6 +103,13 @@ application CSRF header. Logout is never GET. Fetch uses same-origin credentials
 a future approved cross-origin deployment needs an exact origin allowlist and
 explicit credentials, with a new review of cookie and CSRF behavior.
 
+An explicit development-only `TRUSTED_PROXY_ORIGIN` can accommodate Codespaces
+rewriting same-origin Origin to loopback. In that case a matching public Referer
+is additionally required; missing/bad Referer still returns `ORIGIN_FORBIDDEN`.
+This setting is disabled by default, requires public HTTPS, and does not trust
+Host/forwarded headers or other mismatching origins. See
+[Codespaces setup](auth-development.md#local-setup).
+
 ## Local development and authorization
 
 Prefer the existing Vite `/api` proxy so browser requests stay on one origin.
@@ -131,7 +139,9 @@ request IDs with restricted access and a retention policy still to be selected.
 
 ## Reference material
 
-The project choices above apply the [Google OIDC documentation](https://developers.google.com/identity/openid-connect/openid-connect),
-[OAuth PKCE specification](https://www.rfc-editor.org/rfc/rfc7636) and
-[OWASP CSRF guidance](https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html).
-Implementation library selection and security tests belong to #20, not this issue.
+The project choices above apply the [Google OIDC
+documentation](https://developers.google.com/identity/openid-connect/openid-connect),
+[OAuth PKCE specification](https://www.rfc-editor.org/rfc/rfc7636) and [OWASP CSRF
+guidance](https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html).
+Implementation uses Authlib, SQLAlchemy and Alembic; see [setup and
+tests](auth-development.md).

@@ -1,8 +1,9 @@
 # Frontend
 
-React + TypeScript application shell for CivicFlow's future citizen chat
-experience. Built with Vite, native CSS, and CSS Modules. Chat, authentication,
-and backend requests are not implemented yet.
+React + TypeScript application shell for CivicFlow's future citizen chat experience.
+Built with Vite, native CSS, and CSS Modules. Google login/logout and session bootstrap
+use the same-origin `/api/v1` proxy. Chat remains planned. See [authentication
+setup](../docs/auth-development.md).
 
 ## Setup
 
@@ -48,10 +49,10 @@ Optionally copy the public configuration template:
 cp .env.example .env
 ```
 
-`VITE_API_BASE_URL` defaults to `http://localhost:8000`. All environment access
-is centralized in `src/config/env.ts`. The shell consumes this configuration
-as a root data attribute for future integration; it makes no API requests.
-Vite embeds values at build time; restart the dev server after changing `.env`
+`VITE_API_BASE_URL` defaults to `/api`. All environment access is centralized in
+`src/config/env.ts`. The shell exposes this configuration as a root data attribute.
+Authentication always uses same-origin `/api/v1` requests and keeps CSRF/user data in
+memory. Vite embeds values at build time; restart the dev server after changing `.env`
 and rebuild to change a production bundle.
 
 **All `VITE_*` values are exposed to the browser and must never contain secrets.**
@@ -60,12 +61,11 @@ the shared repository `.gitignore`.
 
 ### Development proxy and Docker
 
-The Vite server forwards relative `/api` requests to `http://localhost:8000`
-by default and strips the `/api` prefix: `/api/health` reaches `/health`.
-Future API routes must match this convention or change the rewrite. Set
-`VITE_API_BASE_URL=/api` in your optional local `.env` to use the proxy when
-integrating browser requests. The existing shell still makes no API calls.
-To override the server-only target outside Docker, run:
+The Vite server forwards relative `/api` requests to `http://localhost:8000` by default
+and strips the `/api` prefix: `/api/health` reaches `/health`. Future API routes must
+match this convention or change the rewrite. Set `VITE_API_BASE_URL=/api` in your
+optional local `.env` to use the proxy when integrating browser requests. Authentication
+requests use this proxy. To override the server-only target outside Docker, run:
 
 ```bash
 API_PROXY_TARGET=http://localhost:9000 npm run dev
@@ -164,9 +164,9 @@ keyboard focus. Native select arrow-key behavior should also be checked in a
 browser because jsdom does not implement it. Technical missing-key diagnostics
 are not shown to citizens.
 
-This preference controls UI text only. It does not detect message language or
-translate messages. No authentication or preferences endpoint is called.
-Future authentication integration must apply the server's `preferred_locale`
-for existing users and save authenticated selections through the profile API;
-see the [locale contract](../docs/api-contracts.md#ui-locale-and-assistant-language).
-That integration belongs to #20/#23.
+This preference controls UI text only. It does not detect message language or translate
+messages. Authentication bootstrap applies the server's `preferred_locale` for existing
+users. The selector is disabled while authenticated until #23 implements saving
+preferences through the profile API; see the [locale
+contract](../docs/api-contracts.md#ui-locale-and-assistant-language). Preference editing
+belongs to #23.

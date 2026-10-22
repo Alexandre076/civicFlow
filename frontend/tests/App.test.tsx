@@ -1,10 +1,11 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, expect, it } from 'vitest'
+import { beforeEach, expect, it, vi } from 'vitest'
 import App from '../src/App'
 import i18n, { localeStorageKey } from '../src/i18n/config'
 
 beforeEach(async () => {
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 401 })))
   localStorage.clear()
   await i18n.changeLanguage('pt-BR')
 })

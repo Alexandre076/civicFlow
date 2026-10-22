@@ -1,9 +1,10 @@
 # API contracts — v1 (planned)
 
-Design baseline for [Issue #18](https://github.com/Alexandre076/civicFlow/issues/18)
-and [Epic #2](https://github.com/Alexandre076/civicFlow/issues/2), consumed by
-#19–#26. These contracts are not implemented. Today only `GET /health` exists;
-see [architecture](architecture.md), [authentication](authentication.md) and
+Design baseline for [Issue #18](https://github.com/Alexandre076/civicFlow/issues/18) and
+[Epic #2](https://github.com/Alexandre076/civicFlow/issues/2), consumed by
+#19–#26. Authentication endpoints are implemented in #20; conversation, preference and
+streaming endpoints remain planned. See [auth setup](auth-development.md); see
+[architecture](architecture.md), [authentication](authentication.md) and
 [streaming](streaming.md). Epic #2 uses PostgreSQL and deterministic mock replies;
 LangGraph belongs to Epic #3 and municipal protocols/tools to Epic #4.
 
