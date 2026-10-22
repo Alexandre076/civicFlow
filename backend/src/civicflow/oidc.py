@@ -10,6 +10,13 @@ from authlib.oidc.core import CodeIDToken
 
 ISSUER = "https://accounts.google.com"
 DISCOVERY = ISSUER + "/.well-known/openid-configuration"
+# Exact hosts by role from Google's pinned discovery document. Do not trust
+# arbitrary googleapis.com subdomains or browser/token-supplied destinations.
+ENDPOINT_HOSTS = {
+    "authorization_endpoint": "accounts.google.com",
+    "token_endpoint": "oauth2.googleapis.com",
+    "jwks_uri": "www.googleapis.com",
+}
 
 
 class InvalidToken(Exception):
@@ -33,10 +40,26 @@ class GoogleOIDC:
                 data = response.json()
             if data["issuer"] != ISSUER:
                 raise ValueError("issuer")
-            # Provider metadata is trusted only over HTTPS, never browser supplied.
-            for key in ("authorization_endpoint", "token_endpoint", "jwks_uri"):
-                url = urlsplit(data[key])
-                if url.scheme != "https" or not url.hostname or url.username:
+            for key, host in ENDPOINT_HOSTS.items():
+                value = data[key]
+                if not isinstance(value, str) or any(
+                    char.isspace() or ord(char) < 32 or ord(char) == 127
+                    for char in value
+                ):
+                    raise ValueError("endpoint")
+                url = urlsplit(value)
+                if (
+                    url.scheme != "https"
+                    or url.hostname != host
+                    or url.netloc not in {host, host + ":443"}
+                    or url.port not in {None, 443}
+                    or url.username is not None
+                    or url.password is not None
+                    or not url.path.startswith("/")
+                    or "\\" in value
+                    or "?" in value
+                    or "#" in value
+                ):
                     raise ValueError("endpoint")
             return data
         except (httpx.HTTPError, ValueError, KeyError, TypeError) as exc:

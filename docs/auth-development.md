@@ -83,6 +83,15 @@ Authlib's OAuth2Client exchanges codes with client authentication over HTTPS.
 Authlib CodeIDToken validates the RSA signature and OIDC claims with RS256 as
 the only allowed algorithm. Discovery is pinned to Google's HTTPS discovery URL
 and issuer; JWKS comes only from that document, never from token header URLs.
+Discovery destinations use exact host allowlists by endpoint role: authorization
+on `accounts.google.com`, token exchange on `oauth2.googleapis.com`, and JWKS on
+`www.googleapis.com`. These match [Google's discovery
+document](https://accounts.google.com/.well-known/openid-configuration), including
+its distinct token and signing-key hosts. Paths remain discovery-driven; HTTPS
+with no explicit port or port 443 is required. Credentials, query strings,
+fragments, whitespace, malformed authorities and other hosts (including arbitrary
+Google subdomains) are rejected. HTTP redirects are not followed. A provider host
+change requires reviewing this policy rather than trusting a domain suffix.
 The validated issuer variants normalize to `https://accounts.google.com` for
 identity lookup. Required claims include audience/client ID, expiry, issued-at,
 nonce and a nonempty subject; authorized party is checked including multi-audience
@@ -122,8 +131,16 @@ session-bound synchronizer CSRF value. Transactions retain nonce/verifier only
 until callback consumption or expiry cleanup during login. Revoked/expired
 sessions authorize nothing; retention/periodic cleanup and production limits
 remain release setup. Database access is privileged: do not expose tables or
-log row values. Future authenticated mutation endpoints reuse `require_mutation`
-and hold/recheck the session row lock in the same transaction as their writes;
+log row values. Read-only endpoints reuse `require_session`, which commits idle
+renewal and releases the session row lock before the handler runs; it does not
+provide a mutation fence. Future authenticated mutation endpoints reuse
+`require_mutation`, which validates under the session row lock and holds it in
+the same transaction as their writes. The shared `database` dependency commits
+on success and rolls back on exceptions, including commit failures. Use
+`Depends(database, scope="function")` when injecting that session into a handler
+so cleanup and commit complete before sending a success response. Mutation
+handlers must not commit early or mix in `require_session`, since that would
+release their revocation fence before all writes complete;
 streams must add their own recurring revocation fence in #24. No streams exist yet.
 
 ## Tests and frontend integration

@@ -7,15 +7,24 @@ from urllib.parse import parse_qs, urlsplit
 import httpx
 import pytest
 from authlib.jose import JsonWebKey, jwt
+from fastapi import Depends
 from fastapi.testclient import TestClient
-from sqlalchemy import func, select
+from sqlalchemy import event, func, select
+from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from civicflow.auth import digest
+from civicflow.auth import (
+    Authenticated,
+    AuthError,
+    database,
+    digest,
+    require_mutation,
+    require_session,
+)
 from civicflow.config import Settings
 from civicflow.main import create_app
 from civicflow.models import BrowserSession, Identity, LoginTransaction, User
-from civicflow.oidc import ISSUER, GoogleOIDC, InvalidToken
+from civicflow.oidc import ISSUER, GoogleOIDC, InvalidToken, ProviderUnavailable
 
 
 @pytest.fixture
@@ -46,8 +55,8 @@ def flow(auth_database, keys):
                 json={
                     "issuer": ISSUER,
                     "authorization_endpoint": ISSUER + "/authorize",
-                    "token_endpoint": ISSUER + "/token",
-                    "jwks_uri": ISSUER + "/keys",
+                    "token_endpoint": "https://oauth2.googleapis.com/token",
+                    "jwks_uri": "https://www.googleapis.com/keys",
                 },
             )
         if request.url.path == "/keys":
@@ -438,3 +447,175 @@ def test_proxy_origin_does_not_trust_other_origins(flow, origin, referer, enable
     assert response.status_code == 403
     assert response.json()["error"]["code"] == "ORIGIN_FORBIDDEN"
     assert client.get("/v1/auth/me").status_code == 200
+
+
+@pytest.mark.parametrize("remaining", [30, 200000])
+def test_read_only_dependency_persists_renewal_and_releases_lock(flow, remaining):
+    client, app, start, _ = flow
+    client.get("/v1/auth/google/callback", params=start())
+    now = int(time.time())
+    with Session(app.state.engine) as db:
+        session = db.scalar(select(BrowserSession))
+        session.last_used_at = now - 100
+        session.idle_expires_at = now + 10
+        session.absolute_expires_at = now + remaining
+        db.commit()
+
+    @app.get("/v1/read-only")
+    def read_only(
+        auth: Authenticated = Depends(require_session),
+        db: Session = Depends(database, scope="function"),
+    ):
+        assert not db.in_transaction()
+        # A separate connection can lock the row before this handler returns.
+        with Session(app.state.engine) as other:
+            renewed = other.scalar(select(BrowserSession).with_for_update(nowait=True))
+            assert renewed.last_used_at >= now
+            assert renewed.idle_expires_at == min(
+                renewed.last_used_at + app.state.settings.session_idle_ttl,
+                renewed.absolute_expires_at,
+            )
+            assert renewed.idle_expires_at > now + 10
+        return {"id": auth.user.id}
+
+    assert client.get("/v1/read-only").status_code == 200
+
+
+@pytest.mark.parametrize("fail", [False, True])
+def test_mutation_dependency_owns_transaction_and_fence(flow, fail):
+    client, app, start, _ = flow
+    client.get("/v1/auth/google/callback", params=start())
+    token = client.get("/v1/auth/me").headers["x-csrf-token"]
+    with Session(app.state.engine) as db:
+        session = db.scalar(select(BrowserSession))
+        session.last_used_at = 1
+        db.commit()
+
+    @app.post("/v1/mutate")
+    def mutate(auth: Authenticated = Depends(require_mutation)):
+        with Session(app.state.engine) as other:
+            with pytest.raises(OperationalError):
+                other.scalar(select(BrowserSession).with_for_update(nowait=True))
+        auth.user.display_name = "Changed"
+        if fail:
+            raise AuthError("VALIDATION_ERROR", 422)
+        auth.session.revoked = True
+        return {"ok": True}
+
+    response = client.post(
+        "/v1/mutate",
+        headers={"Origin": app.state.settings.public_origin, "X-CSRF-Token": token},
+    )
+    assert response.status_code == (422 if fail else 200)
+    with Session(app.state.engine) as db:
+        session = db.scalar(select(BrowserSession).with_for_update(nowait=True))
+        assert session.revoked is (not fail)
+        assert (session.last_used_at == 1) is fail
+        assert db.get(User, session.user_id).display_name == (
+            "Citizen" if fail else "Changed"
+        )
+    if not fail:
+        assert client.get("/v1/auth/me").status_code == 401
+
+
+def test_mutation_commit_failure_returns_error_and_rolls_back(flow):
+    client, app, start, _ = flow
+    client.get("/v1/auth/google/callback", params=start())
+    token = client.get("/v1/auth/me").headers["x-csrf-token"]
+
+    def fail_commit(db):
+        raise SQLAlchemyError("test commit failure")
+
+    event.listen(Session, "before_commit", fail_commit)
+    try:
+        response = client.post(
+            "/v1/auth/logout",
+            headers={"Origin": app.state.settings.public_origin, "X-CSRF-Token": token},
+        )
+    finally:
+        event.remove(Session, "before_commit", fail_commit)
+    assert response.status_code == 503
+    with Session(app.state.engine) as db:
+        assert not db.scalar(
+            select(BrowserSession).with_for_update(nowait=True)
+        ).revoked
+
+
+GOOGLE_METADATA = {
+    "issuer": ISSUER,
+    "authorization_endpoint": "https://accounts.google.com/o/oauth2/v2/auth",
+    "token_endpoint": "https://oauth2.googleapis.com/token",
+    "jwks_uri": "https://www.googleapis.com/oauth2/v3/certs",
+}
+
+
+@pytest.mark.parametrize("port", ["", ":443"])
+def test_google_discovery_accepts_official_endpoints(port):
+    metadata = {
+        key: value.replace(".com/", ".com" + port + "/") if key != "issuer" else value
+        for key, value in GOOGLE_METADATA.items()
+    }
+    oidc = GoogleOIDC(
+        Settings(_env_file=None),
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(200, json=metadata)
+        ),
+    )
+    assert oidc.metadata() == metadata
+
+
+@pytest.mark.parametrize(
+    "key", ["authorization_endpoint", "token_endpoint", "jwks_uri"]
+)
+@pytest.mark.parametrize(
+    "destination",
+    [
+        "https://evil.test/path",
+        "https://accounts.google.com.evil.test/path",
+        "https://untrusted.googleapis.com/path",
+        "https://accounts.google.com@evil.test/path",
+        "https://@accounts.google.com/path",
+        "https://user:password@accounts.google.com/path",
+        "https://accounts.google.com:444/path",
+        "https://accounts.google.com:bad/path",
+        "https://accounts.google.com:/path",
+        "https://accounts.google.com./path",
+        "http://accounts.google.com/path",
+        "//accounts.google.com/path",
+        "https://[broken/path",
+        "https://accounts.google.com/pa\nth",
+        " https://accounts.google.com/path",
+        "https://accounts.google.com/path?next=evil",
+        "https://accounts.google.com/path#fragment",
+        "https://accounts.google.com/pa\\th",
+        "",
+        None,
+        42,
+        {},
+    ],
+)
+def test_google_discovery_rejects_untrusted_or_malformed_endpoints(key, destination):
+    metadata = {**GOOGLE_METADATA, key: destination}
+    oidc = GoogleOIDC(
+        Settings(_env_file=None),
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(200, json=metadata)
+        ),
+    )
+    with pytest.raises(ProviderUnavailable):
+        oidc.metadata()
+
+
+@pytest.mark.parametrize(
+    "key", ["authorization_endpoint", "token_endpoint", "jwks_uri"]
+)
+def test_google_discovery_rejects_wrong_endpoint_role(key):
+    metadata = {**GOOGLE_METADATA, key: "https://openidconnect.googleapis.com/path"}
+    oidc = GoogleOIDC(
+        Settings(_env_file=None),
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(200, json=metadata)
+        ),
+    )
+    with pytest.raises(ProviderUnavailable):
+        oidc.metadata()

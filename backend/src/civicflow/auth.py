@@ -68,7 +68,12 @@ def auth_error(request, exc):
 
 def database(request: Request):
     with Session(request.app.state.engine, expire_on_commit=False) as db:
-        yield db
+        try:
+            yield db
+            db.commit()
+        except BaseException:
+            db.rollback()
+            raise
 
 
 @dataclass
@@ -77,7 +82,7 @@ class Authenticated:
     session: BrowserSession
 
 
-def require_session(request: Request, db: Session = Depends(database)):
+def locked_session(request: Request, db: Session):
     settings = request.app.state.settings
     raw = request.cookies.get(settings.session_cookie)
     if not raw:
@@ -105,6 +110,15 @@ def require_session(request: Request, db: Session = Depends(database)):
     return Authenticated(user, session)
 
 
+def require_session(
+    request: Request, db: Session = Depends(database, scope="function")
+):
+    # Reads renew independently and release the fence before the handler runs.
+    auth = locked_session(request, db)
+    db.commit()
+    return auth
+
+
 def referer_origin(request: Request) -> str:
     try:
         ref = urlsplit(request.headers.get("referer", ""))
@@ -119,7 +133,11 @@ def referer_origin(request: Request) -> str:
         return ""
 
 
-def require_mutation(request: Request, auth: Authenticated = Depends(require_session)):
+def require_mutation(
+    request: Request, db: Session = Depends(database, scope="function")
+):
+    # Keep the fence through the handler's writes and dependency-owned commit.
+    auth = locked_session(request, db)
     settings = request.app.state.settings
     origin = request.headers.get("origin")
     if origin is None:
@@ -146,7 +164,7 @@ def user_dto(user):
 
 
 @router.get("/google/login")
-def login(request: Request, db: Session = Depends(database)):
+def login(request: Request, db: Session = Depends(database, scope="function")):
     settings = request.app.state.settings
     if not settings.google_client_id or not settings.google_client_secret:
         raise AuthError("SERVICE_UNAVAILABLE", 503)
@@ -229,7 +247,7 @@ def resolve_user(db, claims, locale):
 
 
 @router.get("/google/callback")
-def callback(request: Request, db: Session = Depends(database)):
+def callback(request: Request, db: Session = Depends(database, scope="function")):
     settings = request.app.state.settings
     raw = request.cookies.get(settings.transaction_cookie, "")
     # DELETE RETURNING consumes once even across workers, before token exchange.
@@ -295,10 +313,9 @@ def callback(request: Request, db: Session = Depends(database)):
 
 
 @router.get("/me")
-def me(auth: Authenticated = Depends(require_session), db: Session = Depends(database)):
+def me(auth: Authenticated = Depends(require_session)):
     result = user_dto(auth.user)
     token = auth.session.csrf_token
-    db.commit()
     return JSONResponse(result, headers={"X-CSRF-Token": token})
 
 
@@ -306,10 +323,8 @@ def me(auth: Authenticated = Depends(require_session), db: Session = Depends(dat
 def logout(
     request: Request,
     auth: Authenticated = Depends(require_mutation),
-    db: Session = Depends(database),
 ):
     auth.session.revoked = True
-    db.commit()
     response = Response(status_code=204)
     settings = request.app.state.settings
     cookie(response, settings, settings.session_cookie, "", 0)
