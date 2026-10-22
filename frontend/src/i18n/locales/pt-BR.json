@@ -22,5 +22,15 @@
       "title": "O chat do cidadão está chegando.",
       "description": "Em uma próxima versão, você poderá fazer perguntas e explorar os serviços municipais por meio de uma conversa. Esta experiência ainda está em desenvolvimento."
     }
+  },
+  "auth": {
+    "title": "Conta",
+    "loading": "Verificando sua sessão…",
+    "error": "Não foi possível entrar ou sair. Tente novamente.",
+    "signedIn": "Conectado como {{name}}",
+    "citizen": "Cidadão",
+    "logout": "Sair",
+    "login": "Entrar com Google",
+    "retry": "Tentar novamente"
   }
 }

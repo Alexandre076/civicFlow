@@ -17,4 +17,4 @@ COPY --chown=app:app . .
 RUN uv sync --locked
 
 EXPOSE 8000
-CMD [".venv/bin/uvicorn", "civicflow.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+CMD [".venv/bin/uvicorn", "civicflow.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--no-access-log"]

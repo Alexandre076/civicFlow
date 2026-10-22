@@ -1,9 +1,12 @@
+import { useState } from 'react'
+import AuthPanel from './AuthPanel'
 import { useTranslation } from 'react-i18next'
 import { selectLocale, supportedLocales } from './i18n/config'
 import { env } from './config/env'
 import styles from './App.module.css'
 
 export default function App() {
+  const [authenticated, setAuthenticated] = useState(false)
   const { t, i18n } = useTranslation()
   return (
     <div className={styles.shell} data-api-base-url={env.apiBaseUrl}>
@@ -12,7 +15,7 @@ export default function App() {
         <span className={styles.badge}>{t('home.services')}</span>
         <label className={styles.language}>
           {t('common.language')}
-          <select value={i18n.resolvedLanguage} onChange={(event) => void selectLocale(event.target.value)}>
+          <select disabled={authenticated} value={i18n.resolvedLanguage} onChange={(event) => void selectLocale(event.target.value)}>
             {supportedLocales.map((locale) => (
               <option key={locale} value={locale} lang={locale}>{t(`common.languages.${locale}`)}</option>
             ))}
@@ -26,6 +29,7 @@ export default function App() {
           <p className={styles.description}>
             {t('home.welcome.description')}
           </p>
+          <AuthPanel onAuthenticated={setAuthenticated} />
         </section>
         <section className={styles.placeholder} aria-labelledby="chat-title">
           <span className={styles.badge}>{t('chat.placeholder.badge')}</span>

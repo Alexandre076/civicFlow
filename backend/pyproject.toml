@@ -5,6 +5,11 @@ description = "CivicFlow backend API"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [
+  "authlib>=1.6,<2",
+  "sqlalchemy>=2.0,<3",
+  "alembic>=1.16,<2",
+  "psycopg[binary]>=3.2,<4",
+  "httpx>=0.28,<1.0",
   "fastapi>=0.115,<1.0",
   "pydantic>=2.10,<3.0",
   "pydantic-settings>=2.7,<3.0",

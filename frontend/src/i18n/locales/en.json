@@ -22,5 +22,15 @@
       "title": "Citizen chat is on its way.",
       "description": "In a future release, you’ll be able to ask questions and explore city services through a conversation. This experience is still being built."
     }
+  },
+  "auth": {
+    "title": "Account",
+    "loading": "Checking your session…",
+    "error": "Unable to complete sign-in or sign-out. Please try again.",
+    "signedIn": "Signed in as {{name}}",
+    "citizen": "Citizen",
+    "logout": "Sign out",
+    "login": "Sign in with Google",
+    "retry": "Try again"
   }
 }

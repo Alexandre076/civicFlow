@@ -8,9 +8,9 @@ from planned capabilities; it does not define new API or storage contracts.
 
 | Component | Current responsibility |
 | --- | --- |
-| `frontend/` | React + TypeScript shell, Vite, native CSS and CSS Modules; coming-soon chat placeholder, no API calls or authentication. Node.js 22 and npm. |
-| `backend/` | Python 3.12, FastAPI, Pydantic v2 and uv; `GET /health` returns `{"status":"ok"}`, with generated `/docs`, `/redoc`, and `/openapi.json`. |
-| `compose.yaml` | Local Vite and Uvicorn servers, source mounts, isolated dependency volumes, and backend health check. |
+| `frontend/` | React + TypeScript shell, Vite, native CSS and CSS Modules; coming-soon chat placeholder, Google login/logout and same-origin session bootstrap. Node.js 22 and npm. |
+| `backend/` | Python 3.12, FastAPI, Pydantic v2 and uv; `GET /health` returns `{"status":"ok"}`, plus v1 Google OIDC BFF authentication with PostgreSQL sessions. |
+| `compose.yaml` | Local Vite and Uvicorn servers, source mounts, isolated dependency volumes, and backend health check, PostgreSQL and startup migrations. |
 | `.github/workflows/ci.yml` | Independent `backend` and `frontend` checks for lint, formatting/type checks, tests, and frontend build as applicable. |
 
 Each application owns its dependencies, lockfile, settings, tests, and tooling.
@@ -21,17 +21,16 @@ browser `VITE_*` settings must never contain secrets.
 
 ## Development communication
 
-`frontend/src/config/env.ts` reads `VITE_API_BASE_URL`, defaulting to
-`http://localhost:8000`. The shell exposes this as a data attribute and makes
-no requests. Setting it to `/api` allows future browser requests to use the
-Vite development proxy in `frontend/vite.config.ts`.
+`frontend/src/config/env.ts` reads `VITE_API_BASE_URL`, defaulting to `/api`. The shell
+exposes this as a data attribute. Authentication uses same-origin `/api/v1` requests
+through the Vite development proxy in `frontend/vite.config.ts`.
 
-Vite forwards `/api` requests to `API_PROXY_TARGET` (default
-`http://localhost:8000`) and strips the prefix: `/api/health` reaches backend
-`/health`. Compose sets the browser API base to `/api` and the server-only
-target to `http://backend:8000`. Vite resolves the Docker service hostname
-inside the Compose network; the browser uses `/api`. The shell can start
-independently of backend health. Production hosting and routing are not defined.
+Vite forwards `/api` requests to `API_PROXY_TARGET` (default `http://localhost:8000`)
+and strips the prefix: `/api/health` reaches backend `/health`. Compose sets the browser
+API base to `/api` and the server-only target to `http://backend:8000`. Vite resolves
+the Docker service hostname inside the Compose network; the browser uses `/api`. The
+shell renders a recoverable authentication error when the backend is unavailable.
+Production hosting and routing are not defined.
 
 See the [root quickstart](../README.md#development-with-docker-compose),
 [frontend guide](../frontend/README.md), and [backend guide](../backend/README.md)
@@ -39,11 +38,11 @@ for commands and configuration.
 
 ## Target MVP components (planned)
 
-Only the frontend and backend foundations exist today. All request-processing
-connections below are planned. PostgreSQL persistence for users, identities,
-sessions, conversations and messages is planned in Epic #2 and is not required
-to run the current application. Municipal incident/protocol persistence belongs
-to Epic #4.
+Authentication is implemented; see [auth development](auth-development.md) for its
+SQLAlchemy/Alembic foundation, security configuration and #21 conventions. All
+request-processing connections below are planned. PostgreSQL persists users, identities,
+sessions and login transactions. Conversation/message storage remains planned in Epic
+#2. Municipal incident/protocol persistence belongs to Epic #4.
 
 ```mermaid
 flowchart TD
@@ -66,7 +65,7 @@ flowchart TD
 | Backend API | Validate inputs and outputs with Pydantic and coordinate the interaction. Planned v1 contracts are defined in [API contracts](api-contracts.md); no chat endpoints are implemented. |
 | LangGraph orchestration | Coordinate the Intake Agent, which understands requests and collects missing details, and the Routing Agent, which classifies and routes them. LangGraph is not installed yet. |
 | MCP tools | Provide mock municipal protocol creation and lookup behind a tool boundary. No MCP implementation or live government-system integration exists. |
-| Conversation persistence (Epic #2) | PostgreSQL will store users, linked identities, sessions as appropriate, conversations and messages. Schema, ORM and migrations are not implemented. |
+| Conversation persistence (Epic #2) | PostgreSQL will store users, linked identities, sessions as appropriate, conversations and messages. The shared ORM/migration foundation exists for authentication; conversation/message models and migrations remain planned. |
 | Municipal persistence (Epic #4) | Future incident/protocol records; outside the conversation-history scope. |
 
 ## Anticipated citizen-request flow
@@ -82,11 +81,12 @@ flowchart TD
    conversation history with deterministic mock assistant replies and no real
    protocol creation; durable storage is not available today.
 
-Planned authentication, conversation and streaming contracts for Epic #2 are
-defined in [API contracts](api-contracts.md), [authentication](authentication.md)
-and [POST/SSE streaming](streaming.md). They specify Google OIDC with BFF
-sessions, ownership checks, locale boundaries and complete paginated history;
-none is implemented. PostgreSQL is selected for conversation history. AI
-providers, agent routing rules and production infrastructure remain unspecified.
-Geospatial analysis, multimodal input, and monitoring/oversight are future ideas
-outside the current MVP scope.
+Planned authentication, conversation and streaming contracts for Epic #2 are defined in
+[API contracts](api-contracts.md), [authentication](authentication.md) and [POST/SSE
+streaming](streaming.md). They specify Google OIDC with BFF sessions, ownership checks,
+locale boundaries and complete paginated history; authentication is implemented as
+described in [auth development](auth-development.md); conversation and streaming
+endpoints remain planned. PostgreSQL is selected for conversation history. AI providers,
+agent routing rules and production infrastructure remain unspecified. Geospatial
+analysis, multimodal input, and monitoring/oversight are future ideas outside the
+current MVP scope.

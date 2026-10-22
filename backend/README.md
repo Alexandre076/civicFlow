@@ -1,7 +1,9 @@
 # Backend
 
-Minimal CivicFlow API built with FastAPI and Pydantic v2. It currently exposes
-only a health endpoint; workflows, integrations, and storage are future work.
+CivicFlow API built with FastAPI and Pydantic v2. It exposes health and Google OIDC BFF
+authentication, with PostgreSQL identity/session storage. Chat and conversation history
+remain planned. See [authentication setup](../docs/auth-development.md) for Google
+registration, settings, migrations, cookies and test database setup.
 
 ## Local setup
 
@@ -37,7 +39,8 @@ is read from the current working directory and is ignored by Git.
 From `backend/`:
 
 ```bash
-uv run uvicorn civicflow.main:app --reload
+uv run alembic upgrade head
+uv run uvicorn civicflow.main:app --reload --no-access-log
 ```
 
 The development server listens at `http://127.0.0.1:8000` by default:
@@ -61,9 +64,10 @@ rewriting source. To apply formatting locally, run `uv run ruff format .` and
 review the changes. CI uses the same checks; see the
 [root quality guide](../README.md#quality-checks-and-ci) for troubleshooting.
 
-Tests use FastAPI's TestClient and require no running server, external APIs,
-databases, or credentials. To verify the lockfile without updating it, use
-`uv sync --locked`.
+Tests use FastAPI's TestClient and a fake Google provider, with no Google credentials or
+external APIs. Database integration tests require an isolated PostgreSQL database
+configured through `CIVICFLOW_TEST_DATABASE_URL`; they skip without it. CI supplies the
+database. To verify the lockfile without updating it, use `uv sync --locked`.
 
 ## Layout
 
@@ -75,10 +79,10 @@ See the [architecture outline](../docs/architecture.md) for application boundari
 
 ## Docker development
 
-The [root Compose quickstart](../README.md#development-with-docker-compose)
-runs Uvicorn with `--host 0.0.0.0 --port 8000 --reload`, source mounts and an
-isolated `.venv` volume. Safe default settings need no `.env`; an optional local
-`backend/.env` is read through the mount and is excluded from image builds.
-Restart the service after changing configuration. `docker compose ps` shows
-health status; the health check uses Python's standard library against
-`GET /health`. No database or other infrastructure is required.
+The [root Compose quickstart](../README.md#development-with-docker-compose) runs Uvicorn
+with `--host 0.0.0.0 --port 8000 --reload`, source mounts and an isolated `.venv`
+volume. Safe default settings need no `.env`; an optional local `backend/.env` is read
+through the mount and is excluded from image builds. Restart the service after changing
+configuration. `docker compose ps` shows health status; the health check uses Python's
+standard library against `GET /health`. Compose starts PostgreSQL and applies migrations
+before Uvicorn; the database volume retains account/session data.

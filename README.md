@@ -3,21 +3,21 @@ An open-source, AI-assisted municipal incident and service-request platform for 
 
 ## Current state and target MVP
 
-Today, CivicFlow provides a React + TypeScript shell with a coming-soon chat
-placeholder, a FastAPI health endpoint, Docker Compose local development, and
-lint, test, and build checks in CI. The shell makes no backend requests.
-Interactive chat, agent orchestration, MCP tools, and persistence are not implemented.
+Today, CivicFlow provides a bilingual React + TypeScript shell with Google OIDC
+login/logout, FastAPI BFF authentication and a health endpoint, PostgreSQL
+user/identity/session persistence, Docker Compose development, and CI checks.
+Interactive chat, agent orchestration, MCP tools and conversation history remain
+planned. See [authentication setup](docs/auth-development.md) for configuration.
 
-The target MVP is a text-based citizen conversation: describe an incident or
-service request, supply missing details, and receive a municipal protocol
-reference or look up its status through mock tools. The planned FastAPI +
-Pydantic backend uses LangGraph Intake and Routing Agents with MCP tools for
-mock protocol creation and lookup. There are no live government-system
-integrations. Persistence is not implemented: Epic #2 plans PostgreSQL for
-users and conversation history; municipal incident/protocol storage belongs to
+The target MVP is a text-based citizen conversation: describe an incident or service
+request, supply missing details, and receive a municipal protocol reference or look up
+its status through mock tools. The planned FastAPI + Pydantic backend uses LangGraph
+Intake and Routing Agents with MCP tools for mock protocol creation and lookup. There
+are no live government-system integrations. Authentication persistence uses PostgreSQL;
+Epic #2 still plans conversation history; municipal incident/protocol storage belongs to
 Epic #4. The planned [API contracts](docs/api-contracts.md),
-[authentication](docs/authentication.md), and [streaming](docs/streaming.md)
-contracts guide Epic #2 implementation.
+[authentication](docs/authentication.md), and [streaming](docs/streaming.md) contracts
+guide Epic #2 implementation.
 
 See the [architecture reference](docs/architecture.md) for component boundaries
 and the intended request flow.
@@ -67,34 +67,35 @@ docker compose down -v
 docker compose up --build
 ```
 
-`down -v` permanently deletes data in this project's Compose volumes. Currently
-these contain only reproducible dependencies; any files manually placed there
-will also be lost. Host source files and local `.env` files remain intact.
+`down -v` permanently deletes data in this project's Compose volumes. These now include
+PostgreSQL account/session data and reproducible dependencies; all of that data will be
+lost. Host source files and local `.env` files remain intact.
 
 Rebuilding images preserves existing dependency volumes. If Vite reports
 `Failed to resolve import` after a dependency change, follow the
 [frontend troubleshooting guide](frontend/README.md#troubleshooting-missing-dependencies-in-docker)
 to refresh the frontend volume and restart its server.
 
-The frontend dev proxy forwards relative `/api/*` requests to
-`http://backend:8000` over the default Compose network, stripping `/api`
-(`GET /api/health` reaches backend `GET /health`). This service hostname is
-server-only; the browser receives `/api` as its API base URL. The current shell
-makes no API calls and can start independently of backend health. Future
-endpoints must follow this rewrite convention or update the proxy together
-with the backend routes. Check DNS/connectivity and the proxy with:
+The frontend dev proxy forwards relative `/api/*` requests to `http://backend:8000` over
+the default Compose network, stripping `/api` (`GET /api/health` reaches backend `GET
+/health`). This service hostname is server-only; the browser receives `/api` as its API
+base URL. Authentication calls use the same-origin proxy; the shell can still render
+when the backend is unavailable. Future endpoints must follow this rewrite convention or
+update the proxy together with the backend routes. Check DNS/connectivity and the proxy
+with:
 
 ```bash
 docker compose exec frontend node -e "fetch('http://backend:8000/health').then(async r => console.log(r.status, await r.text()))"
 curl http://localhost:5173/api/health
 ```
 
-No configuration files or secrets are required. Optional ignored
-`backend/.env` overrides backend settings through its source mount; restart the
-backend after changing settings. Local `.env` files are excluded from image
-builds. Public frontend settings and the server-only `API_PROXY_TARGET` are
-described in the [frontend guide](frontend/README.md); backend settings are in
-the [backend guide](backend/README.md). This Compose setup is for development.
+The shell and health endpoint need no Google credentials. Login requires the server-only
+configuration in [authentication setup](docs/auth-development.md). Optional ignored
+`backend/.env` overrides backend settings through its source mount; restart the backend
+after changing settings. Local `.env` files are excluded from image builds. Public
+frontend settings and the server-only `API_PROXY_TARGET` are described in the [frontend
+guide](frontend/README.md); backend settings are in the [backend
+guide](backend/README.md). This Compose setup is for development.
 
 ## Quality checks and CI
 
@@ -115,11 +116,12 @@ npm run test
 npm run build
 ```
 
-See the [backend guide](backend/README.md) and
-[frontend guide](frontend/README.md) for standalone setup and development.
-Vitest runs once and exits. Tests require no running servers, database,
-credentials, or external AI APIs. Docker Compose is optional for development
-and is not used by CI.
+See the [backend guide](backend/README.md) and [frontend guide](frontend/README.md) for
+standalone setup and development. Vitest runs once and exits. Authentication integration
+tests require an isolated PostgreSQL database via `CIVICFLOW_TEST_DATABASE_URL`; CI
+supplies one. No Google credentials or external AI APIs are required. See [test
+setup](docs/auth-development.md#tests-and-frontend-integration). Docker Compose is
+optional for development and is not used by CI.
 
 The single workflow in [`.github/workflows/ci.yml`](.github/workflows/ci.yml)
 runs on pull requests targeting `main` and pushes to `main`. Its independent
@@ -159,10 +161,10 @@ compose.yaml          Local development services and dependency volumes
 .gitignore            Generated files and local-only configuration
 ```
 
-The backend provides a minimal FastAPI application with a health endpoint.
-See the [backend setup guide](backend/README.md) for Python 3.12 and uv install,
-run, configuration, and test commands. The [frontend setup guide](frontend/README.md)
-covers the React application shell, Node.js 22, npm scripts, and Codespaces access.
+The backend provides FastAPI health and v1 BFF authentication endpoints. See the
+[backend setup guide](backend/README.md) for Python 3.12 and uv install, run,
+configuration, and test commands. The [frontend setup guide](frontend/README.md) covers
+the React application shell, Node.js 22, npm scripts, and Codespaces access.
 
 Each application owns its dependencies, configuration, tests, and build
 tooling in its own directory. See the [architecture outline](docs/architecture.md)
