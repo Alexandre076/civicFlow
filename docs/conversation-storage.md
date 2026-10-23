@@ -62,10 +62,21 @@ Operations on different conversations remain independent. Re-locking refreshes O
 state so a reused session cannot ignore a tombstone or newer terminal state.
 History also holds this lock while capturing its high-water and reading the page.
 
-Accepted user turns update `updated_at` and available language metadata. Assistant
+Accepted attempts update `updated_at` and set `last_language` to the selected
+assistant `response_language`, even when the detected user language differs.
+Standalone user appends update `updated_at` and preserve `last_language`; detected
+language belongs to the user message until a response language is selected. Assistant
 checkpoints preserve their durable content prefix without updating the conversation
 timestamp. Terminal changes update the conversation timestamp/language and attempt
 state atomically. Terminal messages cannot resume or change state.
+
+Each persisted assistant response is limited to 64 KiB (65,536 bytes) of UTF-8
+content, including all accumulated checkpoint text. `MAX_ASSISTANT_CONTENT_BYTES`
+is enforced before writes for both streaming checkpoints and every terminal status;
+oversize content raises `ValueError` without changing stored content or state.
+Empty assistant content remains valid; malformed UTF-8 and NUL bytes are rejected.
+This bounds storage at the repository boundary. Generation-side output limits and
+streaming orchestration remain in #24.
 
 An attempt persists SHA-256 of exact validated UTF-8 content, both message IDs,
 state, random worker lease token, finite lease deadline and timestamps. Same-key

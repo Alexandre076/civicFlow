@@ -12,6 +12,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from civicflow.conversations import (
+    MAX_ASSISTANT_CONTENT_BYTES,
     AttemptConflict,
     ConversationNotFound,
     ConversationRepository,
@@ -61,7 +62,8 @@ def test_restart_and_pagination(engine):
             "owner", cid, after=first.next_after, high_water=first.high_water
         )
         assert [m.content for m in second.items] == ["two"]
-        assert repo.get("owner", cid).last_language == "fr-CA"
+        assert repo.get("owner", cid).last_language is None
+        assert first.items[0].detected_language == "fr-CA"
         assert first.items[0].created_at.utcoffset() == timedelta(0)
     engine.dispose()
     with Session(engine) as db, db.begin():
@@ -515,3 +517,148 @@ def test_invalid_content_does_not_accept_turn(engine, content):
         with pytest.raises(ValueError):
             repo.append_user("owner", cid, content)
         assert repo.list_messages("owner", cid).items == []
+
+
+def test_last_language_uses_selected_response_language(engine):
+    cid = create(engine)
+    with Session(engine) as db, db.begin():
+        repo = ConversationRepository(db)
+        accept(repo, cid, detected_language="fr-CA")
+    with Session(engine) as db, db.begin():
+        repo = ConversationRepository(db)
+        assert repo.get("owner", cid).last_language == "pt-BR"
+        user, assistant = repo.list_messages("owner", cid).items
+        assert user.detected_language == "fr-CA"
+        assert assistant.response_language == "pt-BR"
+
+
+def test_standalone_user_append_preserves_selected_language(engine):
+    cid = create(engine)
+    with Session(engine) as db, db.begin():
+        repo = ConversationRepository(db)
+        attempt = accept(repo, cid)
+        repo.write_assistant_internal(
+            "owner",
+            cid,
+            attempt_id=attempt.id,
+            lease_token=attempt.lease_token,
+            content="done",
+            status="completed",
+        )
+        repo.append_user("owner", cid, "Bonjour", detected_language="fr-CA")
+    with Session(engine) as db:
+        assert ConversationRepository(db).get("owner", cid).last_language == "pt-BR"
+
+
+@pytest.mark.parametrize(
+    "status", ["streaming", "completed", "failed", "cancelled", "interrupted"]
+)
+@pytest.mark.parametrize(
+    "byte_length", [MAX_ASSISTANT_CONTENT_BYTES - 1, MAX_ASSISTANT_CONTENT_BYTES]
+)
+def test_assistant_content_byte_boundary(engine, status, byte_length):
+    cid = create(engine)
+    # Four-byte characters verify the limit measures encoded bytes, not code points.
+    content = "😀" * (byte_length // 4) + "x" * (byte_length % 4)
+    assert len(content.encode("utf-8")) == byte_length
+    with Session(engine) as db, db.begin():
+        repo = ConversationRepository(db)
+        attempt = accept(repo, cid)
+        repo.write_assistant_internal(
+            "owner",
+            cid,
+            attempt_id=attempt.id,
+            lease_token=attempt.lease_token,
+            content=content,
+            status=status,
+        )
+    with Session(engine) as db, db.begin():
+        message = ConversationRepository(db).list_messages("owner", cid).items[-1]
+        assert message.content == content
+        assert message.status == status
+
+
+@pytest.mark.parametrize(
+    "status", ["streaming", "completed", "failed", "cancelled", "interrupted"]
+)
+@pytest.mark.parametrize("multibyte", [False, True])
+def test_oversize_assistant_content_preserves_checkpoint(engine, status, multibyte):
+    cid = create(engine)
+    suffix = (
+        "😀" * (MAX_ASSISTANT_CONTENT_BYTES // 4)
+        if multibyte
+        else "x" * MAX_ASSISTANT_CONTENT_BYTES
+    )
+    content = "x" + suffix
+    assert len(content.encode("utf-8")) == MAX_ASSISTANT_CONTENT_BYTES + 1
+    with Session(engine) as db, db.begin():
+        repo = ConversationRepository(db)
+        attempt = accept(repo, cid)
+        aid, token = attempt.id, attempt.lease_token
+        repo.write_assistant_internal(
+            "owner",
+            cid,
+            attempt_id=aid,
+            lease_token=token,
+            content="x",
+        )
+        before = repo.get("owner", cid).updated_at
+        checkpoint_time = attempt.updated_at
+    # Catch validation inside the transaction and commit to verify no mutation leaks.
+    with Session(engine) as db, db.begin():
+        with pytest.raises(
+            ValueError, match="assistant content exceeds UTF-8 byte limit"
+        ):
+            ConversationRepository(db).write_assistant_internal(
+                "owner",
+                cid,
+                attempt_id=aid,
+                lease_token=token,
+                content=content,
+                status=status,
+            )
+    with Session(engine) as db, db.begin():
+        repo = ConversationRepository(db)
+        message = repo.list_messages("owner", cid).items[-1]
+        assert message.content == "x" and message.status == "streaming"
+        assert message.updated_at == checkpoint_time
+        assert repo.get("owner", cid).updated_at == before
+        attempt = db.get(MessageAttempt, aid)
+        assert attempt.state == "active" and attempt.updated_at == checkpoint_time
+
+
+def test_completed_attempt_replay_reuses_pair_without_new_rows(engine):
+    cid = create(engine)
+    with Session(engine) as db, db.begin():
+        repo = ConversationRepository(db)
+        attempt = accept(repo, cid)
+        original_ids = (
+            attempt.id,
+            attempt.user_message_id,
+            attempt.assistant_message_id,
+        )
+        repo.write_assistant_internal(
+            "owner",
+            cid,
+            attempt_id=attempt.id,
+            lease_token=attempt.lease_token,
+            content="Original response",
+            status="completed",
+        )
+        completed_at = attempt.updated_at
+        conversation_updated_at = repo.get("owner", cid).updated_at
+    with Session(engine) as db, db.begin():
+        repo = ConversationRepository(db)
+        replay = accept(repo, cid)
+        assert (
+            replay.id,
+            replay.user_message_id,
+            replay.assistant_message_id,
+        ) == original_ids
+        assert replay.state == "completed" and replay.updated_at == completed_at
+        assert repo.get("owner", cid).updated_at == conversation_updated_at
+        messages = repo.list_messages("owner", cid).items
+        assert [message.id for message in messages] == list(original_ids[1:])
+        assert messages[-1].content == "Original response"
+        assert db.scalar(select(func.count()).select_from(Message)) == 2
+        assert db.scalar(select(func.count()).select_from(MessageAttempt)) == 1

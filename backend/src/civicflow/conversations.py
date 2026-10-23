@@ -11,6 +11,8 @@ from sqlalchemy.orm import Session
 
 from civicflow.models import Conversation, Message, MessageAttempt
 
+MAX_ASSISTANT_CONTENT_BYTES = 64 * 1024
+
 
 class ConversationNotFound(Exception):
     """Unknown, foreign and deleted identifiers deliberately share one result."""
@@ -182,7 +184,7 @@ class ConversationRepository:
             detected_language=detected_language,
         )
         self.db.add(row)
-        self._touch(conversation, now, detected_language)
+        self._touch(conversation, now)
         self.db.flush()
         return row
 
@@ -288,7 +290,7 @@ class ConversationRepository:
             updated_at=now,
         )
         self.db.add(attempt)
-        self._touch(conversation, now, detected_language or response_language)
+        self._touch(conversation, now, response_language)
         self.db.flush()
         return attempt
 
@@ -312,7 +314,10 @@ class ConversationRepository:
             "interrupted",
         }:
             raise ValueError("invalid assistant status")
-        content.encode("utf-8")
+        if not isinstance(content, str) or len(content) > MAX_ASSISTANT_CONTENT_BYTES:
+            raise ValueError("assistant content exceeds UTF-8 byte limit")
+        if len(content.encode("utf-8")) > MAX_ASSISTANT_CONTENT_BYTES:
+            raise ValueError("assistant content exceeds UTF-8 byte limit")
         if "\x00" in content:
             raise ValueError("invalid content")
         if status in {"streaming", "completed"} and error_code is not None:
