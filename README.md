@@ -5,17 +5,18 @@ An open-source, AI-assisted municipal incident and service-request platform for 
 
 Today, CivicFlow provides a bilingual React + TypeScript shell with Google OIDC
 login/logout, FastAPI BFF authentication and a health endpoint, PostgreSQL
-user/identity/session persistence, Docker Compose development, and CI checks.
-Interactive chat, agent orchestration, MCP tools and conversation history remain
-planned. See [authentication setup](docs/auth-development.md) for configuration.
+user/identity/session and conversation storage, Docker Compose development, and
+CI checks. Conversation HTTP APIs, interactive chat, agent orchestration and MCP
+tools remain planned. See [conversation storage](docs/conversation-storage.md) and
+[authentication setup](docs/auth-development.md) for implementation and configuration.
 
 The target MVP is a text-based citizen conversation: describe an incident or service
 request, supply missing details, and receive a municipal protocol reference or look up
 its status through mock tools. The planned FastAPI + Pydantic backend uses LangGraph
 Intake and Routing Agents with MCP tools for mock protocol creation and lookup. There
 are no live government-system integrations. Authentication persistence uses PostgreSQL;
-Epic #2 still plans conversation history; municipal incident/protocol storage belongs to
-Epic #4. The planned [API contracts](docs/api-contracts.md),
+Epic #2 provides conversation storage while its HTTP API and streaming remain planned.
+Municipal incident/protocol storage belongs to Epic #4. The planned [API contracts](docs/api-contracts.md),
 [authentication](docs/authentication.md), and [streaming](docs/streaming.md) contracts
 guide Epic #2 implementation.
 

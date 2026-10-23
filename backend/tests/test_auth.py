@@ -361,6 +361,9 @@ def test_migration_roundtrip(auth_database):
         "external_identities",
         "sessions",
         "oidc_transactions",
+        "conversations",
+        "messages",
+        "message_attempts",
     }
     engine.dispose()
 
