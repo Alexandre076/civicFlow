@@ -105,9 +105,11 @@ versions; Authlib 1.x currently emits upstream JOSE/httpx migration warnings.
 SQLAlchemy 2 declarative models live in `backend/src/civicflow/models.py`.
 Alembic uses one linear revision chain in `backend/migrations/versions/`, starting
 with `0001` for users, unique `(issuer, subject)` identities, sessions and login
-transactions. #21 should import the same Base and append a revision with
-`down_revision = "0001"`; do not recreate user/identity tables. IDs are opaque
-random strings. Time columns store UTC Unix seconds. Identity resolution uses
+transactions. #21 imports the same Base and adds revision `0002` with
+`down_revision = "0001"`, preserving user/identity tables. IDs are opaque
+random strings. Authentication time columns store UTC Unix seconds; #21 conversation
+tables use timezone-aware PostgreSQL timestamps. See
+[conversation storage](conversation-storage.md). Identity resolution uses
 a savepoint and the unique database constraint to handle concurrent first login
 without orphan users. Email is never an identity key.
 

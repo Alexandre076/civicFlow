@@ -1,8 +1,8 @@
 # Backend
 
 CivicFlow API built with FastAPI and Pydantic v2. It exposes health and Google OIDC BFF
-authentication, with PostgreSQL identity/session storage. Chat and conversation history
-remain planned. See [authentication setup](../docs/auth-development.md) for Google
+authentication, with PostgreSQL identity/session storage. Conversation storage is
+implemented; chat and conversation HTTP APIs remain planned. See [authentication setup](../docs/auth-development.md) for Google
 registration, settings, migrations, cookies and test database setup.
 
 ## Local setup
@@ -86,3 +86,10 @@ through the mount and is excluded from image builds. Restart the service after c
 configuration. `docker compose ps` shows health status; the health check uses Python's
 standard library against `GET /health`. Compose starts PostgreSQL and applies migrations
 before Uvicorn; the database volume retains account/session data.
+
+## Conversation storage (#21)
+
+The storage layer is implemented; conversation HTTP routes (#23), signed cursors,
+SSE/generation and lease recovery scheduling (#24) remain planned. See
+[storage design](../docs/conversation-storage.md) for transactions, ownership,
+pagination, deletion and migration validation.
